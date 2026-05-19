@@ -24,7 +24,8 @@ import {
   RefreshCw,
   Lock,
   Save,
-  Server
+  Server,
+  ClipboardCheck
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -69,8 +70,12 @@ import { KuisGames } from './components/KuisGames';
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('isAuthenticated') === 'true';
+  });
+  const [user, setUser] = useState<string | null>(() => {
+    return localStorage.getItem('user');
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPemeliharaanOpen, setIsPemeliharaanOpen] = useState(false);
   const [isLaporanOpen, setIsLaporanOpen] = useState(false);
@@ -150,6 +155,7 @@ export default function App() {
         { id: 'laporan-fgtm', label: 'FGTM' }
       ]
     },
+    { id: 'inspeksi', label: 'Inspeksi', icon: ClipboardCheck },
     { 
       id: 'pemeliharaan', 
       label: 'Pemeliharaan', 
@@ -167,6 +173,8 @@ export default function App() {
   const handleLogin = (username: string) => {
     setIsAuthenticated(true);
     setUser(username);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('user', username);
     setShowWelcomePopup(true);
     setTimeout(() => {
       setShowWelcomePopup(false);
@@ -176,7 +184,38 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUser(null);
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
   };
+
+  useEffect(() => {
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      if (isAuthenticated) {
+        inactivityTimer = setTimeout(() => {
+          handleLogout();
+        }, 10 * 60 * 1000); // 10 minutes
+      }
+    };
+
+    if (isAuthenticated) {
+      window.addEventListener('mousemove', resetInactivityTimer);
+      window.addEventListener('keydown', resetInactivityTimer);
+      window.addEventListener('click', resetInactivityTimer);
+      window.addEventListener('scroll', resetInactivityTimer);
+      resetInactivityTimer();
+    }
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      window.removeEventListener('mousemove', resetInactivityTimer);
+      window.removeEventListener('keydown', resetInactivityTimer);
+      window.removeEventListener('click', resetInactivityTimer);
+      window.removeEventListener('scroll', resetInactivityTimer);
+    };
+  }, [isAuthenticated]);
 
   const handleClearCache = () => {
     setIsClearingCache(true);
@@ -387,7 +426,7 @@ export default function App() {
               }}
             />
           )}
-          <nav className="flex items-center gap-1 xl:gap-2 flex-wrap justify-center relative z-40 w-full">
+          <nav className="flex items-center gap-0.5 xl:gap-1 flex-wrap justify-center relative z-40 w-full">
             {navItems.map((item) => {
               const isActive = activeTab === item.id || (item.subItems && item.subItems.some(sub => sub.id === activeTab));
               return (
@@ -410,16 +449,16 @@ export default function App() {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-1.5 xl:py-2 rounded-xl transition-all duration-200 text-xs xl:text-sm font-bold whitespace-nowrap",
+                      "flex items-center gap-1.5 px-2 py-1.5 rounded-xl transition-all duration-200 text-[10px] xl:text-xs font-bold whitespace-nowrap",
                        isActive
                         ? "bg-amber-500 text-zinc-950 shadow-amber-500/20" 
                         : "text-zinc-700 dark:text-zinc-200 hover:bg-white/30 dark:hover:bg-white/10"
                     )}
                   >
-                    <item.icon className="w-3.5 xl:w-4 h-3.5 xl:h-4 shrink-0" />
+                    <item.icon className="w-3.5 h-3.5 shrink-0 hidden sm:block" />
                     <span className="tracking-tight">{item.label}</span>
                     {item.subItems && (
-                      <ChevronDown className={cn("w-3.5 h-3.5 transition-transform opacity-70", (item.id === 'pemeliharaan' ? isPemeliharaanOpen : isLaporanOpen) && "rotate-180")} />
+                      <ChevronDown className={cn("w-3 h-3 transition-transform opacity-70", (item.id === 'pemeliharaan' ? isPemeliharaanOpen : isLaporanOpen) && "rotate-180")} />
                     )}
                   </button>
 
@@ -816,6 +855,22 @@ export default function App() {
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Modul Pemeliharaan Gardu</h3>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md">
                     Halaman ini akan menampilkan data inspeksi, jadwal pemeliharaan, dan riwayat perbaikan gardu distribusi.
+                  </p>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'inspeksi' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <Card title="Inspeksi">
+                <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl flex items-center justify-center mb-4">
+                    <ClipboardCheck className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Modul Inspeksi</h3>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md">
+                    Halaman ini akan menampilkan modul inspeksi.
                   </p>
                 </div>
               </Card>
